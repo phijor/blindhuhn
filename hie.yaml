@@ -1,0 +1,10 @@
+cradle:
+  cabal:
+    - path: "test/Main.hs"
+      component: "Blindhuhn:test:Blindhuhn-test"
+
+    - path: "app/Main.hs"
+      component: "Blindhuhn:exe:Blindhuhn"
+
+    - path: "src/"
+      component: "lib:Blindhuhn"
