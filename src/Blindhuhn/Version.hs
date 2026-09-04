@@ -1,8 +1,7 @@
-{-# LANGUAGE TemplateHaskell #-}
+module Blindhuhn.Version (versionString, version) where
 
-module Blindhuhn.Version (versionString) where
-
-import Data.Version.Package (packageVersionStringTH)
+import Data.Version (showVersion)
+import Paths_Blindhuhn (version)
 
 versionString :: String
-versionString = $$(packageVersionStringTH "../../Blindhuhn.cabal")
+versionString = showVersion version

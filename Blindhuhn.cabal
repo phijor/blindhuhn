@@ -23,6 +23,10 @@ library
       Blindhuhn.DefTree
       Blindhuhn.Index
       Blindhuhn.Version
+    other-modules:
+      Paths_Blindhuhn
+    autogen-modules:
+      Paths_Blindhuhn
     -- other-modules:
     -- other-extensions:
     build-depends:
