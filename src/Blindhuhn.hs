@@ -1,82 +1,45 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Blindhuhn (run) where
+-- | An Agda backend which combines the standard HTML renderer with a small,
+-- machine-readable definition index.
+module Blindhuhn
+  ( run,
+  )
+where
 
-import Blindhuhn.Version (versionString)
-
-import Control.DeepSeq (NFData)
-import Control.Monad (forM_)
-import GHC.Generics (Generic)
-
-import Agda.Compiler.Backend
-import Agda.Interaction.Options (OptDescr)
 import Agda.Main (runAgda)
-import Agda.Syntax.Abstract.Pretty (prettyATop)
-import Agda.Syntax.Internal as I
-import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
-import Agda.Syntax.Translation.InternalToAbstract (MonadReify, Reify (reify))
-import Agda.TypeChecking.Pretty
+import Blindhuhn.Backend (backend)
+import Control.Applicative ((<|>))
+import Data.List (stripPrefix)
+import System.Environment (getArgs, withArgs)
 
+-- | Start Agda with the Blindhuhn backend installed.
 run :: IO ()
-run = runAgda [backend]
+run = do
+  args <- getArgs
+  -- The HTML backend is a built-in backend and its implementation is not part
+  -- of Agda's public Haskell API. Enable it through Agda's normal command
+  -- line, then run Blindhuhn alongside it. This also means HTML behavior
+  -- stays in lockstep with the Agda version selected by the user.
+  withArgs ("--html" : syncHtmlDir args) $ runAgda [backend]
+  where
+    syncHtmlDir args =
+      let withIndexDir = case (blindhuhnHtmlDir args, htmlDir args) of
+            (Nothing, Just dir) -> args ++ ["--blindhuhn-html-dir=" ++ dir]
+            _ -> args
+       in case (htmlDir withIndexDir, blindhuhnHtmlDir withIndexDir) of
+            (Nothing, Just dir) -> withIndexDir ++ ["--html-dir=" ++ dir]
+            _ -> withIndexDir
 
-backend :: Backend
-backend = Backend backend'
+    dirOption :: String -> [String] -> Maybe String
+    dirOption _opt [] = Nothing
+    dirOption opt (opt' : dir : rest)
+      | opt == opt' = dirOption opt rest <|> pure dir
+      | otherwise = dirOption opt (dir : rest)
+    dirOption opt (opt' : rest) =
+      case stripPrefix opt opt' of
+        Just ('=' : dir) -> dirOption opt rest <|> pure dir
+        _ -> dirOption opt rest
 
-backend' :: Backend' BhOptions BhEnv BhModuleEnv BhModule Definition
-backend' =
-  Backend'
-    { scopeCheckingSuffices = False
-    , preModule = \_env _isMain _module _interface -> return $ Recompile BhModEnv
-    , preCompile = \_env -> return BhEnv
-    , postModule = bhPostModule
-    , postCompile = \_env _isMain _modules -> return ()
-    , options = BhOptions
-    , mayEraseType = const $ return True
-    , isEnabled = const True
-    , compileDef = \_env _modEnv _isMain definition -> return definition
-    , commandLineFlags = bhFlags
-    , backendVersion = Just versionString
-    , backendName = "blindhuhn"
-    }
-
-data BhEnv = BhEnv
-data BhModuleEnv = BhModEnv
-data BhModule = BhModule
-
-data BhOptions = BhOptions
-  deriving (Eq, Generic)
-instance NFData BhOptions
-
-bhFlags :: [OptDescr (Flag BhOptions)]
-bhFlags = []
-
-isTopLevelDef :: Definition -> Bool
-isTopLevelDef _def = True
-
--- let moduleName = qnameModule $ defName def
--- in isNoName $ qnameName $ defName def
--- moduleName == noModuleName
-
-prettyType :: (MonadReify m, MonadAbsToCon m) => I.Type -> m Doc
-prettyType ty = do
-  abstractType <- reify ty
-  prettyATop abstractType
-
-bhPostModule :: BhEnv -> BhModuleEnv -> IsMain -> TopLevelModuleName -> [Definition] -> TCM BhModule
-bhPostModule _env _modEnv _isMain mod defs = do
-  reportSDoc "blindhuhn" 5 $ text "postModule: " <> prettyTCM mod
-  forM_ (filter isTopLevelDef defs) $ \def -> do
-    let qname = defName def
-        -- qmod = qnameModule qname
-        -- qnameId = showQNameId qname
-        qtype = defType def
-    reportSDoc "blindhuhn" 5 $
-      -- text "postModule: definition: " <+> prettyTCM qnameId <+> prettyTCM qname <+> prettyTCM qmod
-      -- <+> prettyTCM (getRange $ theDef def)
-      text "postModule: definition: " <+> prettyTCM qname <+> text ":" <+> prettyType qtype
-
-  -- TODO:
-  -- * Check kind of the definition; group records/data type defs together
-
-  pure BhModule
+    htmlDir = dirOption "--html-dir"
+    blindhuhnHtmlDir = dirOption "--blindhuhn-html-dir"

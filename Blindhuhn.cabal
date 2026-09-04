@@ -19,14 +19,22 @@ library
     import:           warnings
     exposed-modules:
       Blindhuhn
+      Blindhuhn.Backend
+      Blindhuhn.DefTree
+      Blindhuhn.Index
       Blindhuhn.Version
     -- other-modules:
     -- other-extensions:
     build-depends:
         base ^>=4.16.4.0
       , Agda ^>=2.6.3
+      , aeson ^>=2.0.3.0
       , package-version ^>=0.3
       , deepseq
+      , containers
+      , filepath
+      , text ^>=1.2.5.0
+      , uri-encode ^>=1.5.0.7
     hs-source-dirs:   src
     default-language: GHC2021
 
@@ -52,4 +60,6 @@ test-suite Blindhuhn-test
     main-is:          Main.hs
     build-depends:
         base ^>=4.16.4.0,
-        Blindhuhn
+        Blindhuhn,
+        aeson ^>=2.0.3.0,
+        text ^>=1.2.5.0
