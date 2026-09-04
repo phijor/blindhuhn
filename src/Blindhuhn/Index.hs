@@ -2,6 +2,7 @@
 
 module Blindhuhn.Index
   ( Entry(..)
+  , Visibility(..)
   , fromDefinition
   , render
   ) where
@@ -24,6 +25,20 @@ import qualified Data.Text.Lazy.Encoding as TextEncoding
 import GHC.Generics (Generic)
 import Network.URI.Encode qualified as URI
 
+-- | Visibility of a definition in its defining module's scope.
+data Visibility
+  = Private
+  | Public
+  | Imported
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData Visibility
+
+instance ToJSON Visibility where
+  toJSON Private = "private"
+  toJSON Public = "public"
+  toJSON Imported = "imported"
+
 -- | A definition and its location in generated HTML.
 --
 -- 'position' is Agda's one-based character offset, the same value used by the
@@ -37,6 +52,7 @@ data Entry = Entry
   , indexPosition :: Int
   , indexLine :: Int
   , indexColumn :: Int
+  , indexVisibility :: Visibility
   }
   deriving (Eq, Ord, Show, Generic)
 
@@ -50,11 +66,12 @@ instance ToJSON Entry where
     , "position" .= indexPosition entry
     , "line" .= indexLine entry
     , "column" .= indexColumn entry
+    , "visibility" .= indexVisibility entry
     ]
 
 -- | Turn a compiled definition into an entry.
-fromDefinition :: TopLevelModuleName -> Definition -> Maybe Entry
-fromDefinition moduleName definition = do
+fromDefinition :: TopLevelModuleName -> Visibility -> Definition -> Maybe Entry
+fromDefinition moduleName visibility definition = do
   start <- rStart $ nameBindingSite $ qnameName $ defName definition
   let position = fromIntegral $ posPos start
       pageModuleText = prettyShow moduleName
@@ -67,6 +84,7 @@ fromDefinition moduleName definition = do
     , indexPosition = position
     , indexLine = fromIntegral $ posLine start
     , indexColumn = fromIntegral $ posCol start
+    , indexVisibility = visibility
     }
 
 -- | Render the definition index as deterministic UTF-8 JSON.
