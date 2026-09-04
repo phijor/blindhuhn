@@ -5,7 +5,8 @@
   haskell,
   linkFarmFromDrvs,
   lib,
-}: let
+}:
+let
   inherit (haskell.lib.compose) dontCheck;
 
   toPkg = version: {
@@ -13,15 +14,11 @@
     value = haskell.packages.${version}.${name};
   };
 
-  packages =
-    builtins.listToAttrs (map toPkg ghcVersions)
-    // {
-      default = dontCheck haskellPackages.${name};
-    };
+  packages = builtins.listToAttrs (map toPkg ghcVersions) // {
+    default = dontCheck haskellPackages.${name};
+  };
 in
-  packages
-  // {
-    all = linkFarmFromDrvs "${name}-all" (
-      lib.unique (lib.attrValues packages)
-    );
-  }
+packages
+// {
+  all = linkFarmFromDrvs "${name}-all" (lib.unique (lib.attrValues packages));
+}

@@ -8,11 +8,12 @@
   pkgconfig,
   zlib,
   icu,
-}: let
+}:
+let
   cabal-with-nix = symlinkJoin {
     name = "cabal";
-    paths = [haskellPackages.cabal-install];
-    buildInputs = [makeWrapper];
+    paths = [ haskellPackages.cabal-install ];
+    buildInputs = [ makeWrapper ];
     postBuild = ''
       wrapProgram $out/bin/cabal --add-flags "--enable-nix"
     '';
@@ -30,7 +31,8 @@
     zlib.out
     icu
   ];
-in {
+in
+{
   default = haskellPackages.shellFor {
     inherit packages buildInputs;
 

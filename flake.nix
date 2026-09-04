@@ -11,28 +11,32 @@
     };
   };
 
-  outputs = args @ {
-    self,
-    nixpkgs,
-    flake-utils,
-    ...
-  }: let
-    ghcVersions = ["ghc927"];
-  in
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      ...
+    }:
+    let
+      ghcVersions = [ "ghc927" ];
+    in
     {
       overlays = import ./nix/overlays.nix (
         hsfinal: _: {
-          Blindhuhn = hsfinal.callCabal2nix "Blindhuhn" ./. {};
+          Blindhuhn = hsfinal.callCabal2nix "Blindhuhn" ./. { };
         }
       );
     }
     // flake-utils.lib.eachDefaultSystem (
-      system: let
+      system:
+      let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [self.overlays.default];
+          overlays = [ self.overlays.default ];
         };
-      in rec {
+      in
+      rec {
         packages = pkgs.callPackages ./nix/packages.nix {
           inherit ghcVersions;
           name = "Blindhuhn";
@@ -45,7 +49,7 @@
           default = app.blindhuhn;
         };
         devShells = pkgs.callPackages ./nix/dev-shells.nix {
-          packages = p: [p.Blindhuhn];
+          packages = p: [ p.Blindhuhn ];
         };
 
         formatter = pkgs.alejandra;
