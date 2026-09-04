@@ -7,39 +7,32 @@ module Blindhuhn
   )
 where
 
-import Agda.Main (runAgda)
+import Agda.Compiler.Backend (Backend (..), Backend' (isEnabled))
+import Agda.Interaction.Highlighting.HTML (htmlBackend)
+import Agda.Main (runAgda')
 import Blindhuhn.Backend (backend)
 import Control.Applicative ((<|>))
 import Data.List (stripPrefix)
-import System.Environment (getArgs, withArgs)
+import Data.Maybe (fromMaybe)
+import System.Environment (getArgs)
 
 -- | Start Agda with the Blindhuhn backend installed.
 run :: IO ()
 run = do
   args <- getArgs
-  -- The HTML backend is a built-in backend and its implementation is not part
-  -- of Agda's public Haskell API. Enable it through Agda's normal command
-  -- line, then run Blindhuhn alongside it. This also means HTML behavior
-  -- stays in lockstep with the Agda version selected by the user.
-  withArgs ("--html" : syncHtmlDir args) $ runAgda [backend]
+  runAgda' [alwaysEnabled htmlBackend, backend (htmlDir args)]
   where
-    syncHtmlDir args =
-      let withIndexDir = case (blindhuhnHtmlDir args, htmlDir args) of
-            (Nothing, Just dir) -> args ++ ["--blindhuhn-html-dir=" ++ dir]
-            _ -> args
-       in case (htmlDir withIndexDir, blindhuhnHtmlDir withIndexDir) of
-            (Nothing, Just dir) -> withIndexDir ++ ["--html-dir=" ++ dir]
-            _ -> withIndexDir
+    alwaysEnabled (Backend backend') =
+      Backend backend' {isEnabled = const True}
 
-    dirOption :: String -> [String] -> Maybe String
-    dirOption _opt [] = Nothing
-    dirOption opt (opt' : dir : rest)
-      | opt == opt' = dirOption opt rest <|> pure dir
-      | otherwise = dirOption opt (dir : rest)
-    dirOption opt (opt' : rest) =
-      case stripPrefix opt opt' of
-        Just ('=' : dir) -> dirOption opt rest <|> pure dir
-        _ -> dirOption opt rest
-
-    htmlDir = dirOption "--html-dir"
-    blindhuhnHtmlDir = dirOption "--blindhuhn-html-dir"
+    htmlDir :: [String] -> String
+    htmlDir args = fromMaybe "html" $ go args
+      where
+        -- | Parse arguments of the form `--html-dir <DIR>` or `--html-dir=<DIR>`.
+        go :: [String] -> Maybe String
+        go [] = Nothing
+        go ("--html-dir" : dir : rest) = go rest <|> pure dir
+        go (opt : rest) =
+          case stripPrefix "--html-dir=" opt of
+            Just dir@(_ : _) -> go rest <|> pure dir
+            _ -> go rest

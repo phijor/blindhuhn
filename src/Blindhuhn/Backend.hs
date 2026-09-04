@@ -1,7 +1,6 @@
 module Blindhuhn.Backend (backend) where
 
 import Agda.Compiler.Backend
-import Agda.Interaction.Options (ArgDescr (..), OptDescr (..))
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Utils.IO.UTF8 (writeTextToFile)
 import Blindhuhn.Index qualified as Index
@@ -13,12 +12,9 @@ import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 
-backend :: Backend
-backend = Backend backend'
+backend :: FilePath -> Backend
+backend outputDir = Backend (backend' {options = initialBhOptions {bhOutputDir = outputDir}})
 
--- | Options intentionally use a backend-specific prefix. Agda also installs
--- the built-in HTML backend, whose @--html-dir@ option would otherwise be
--- ambiguous when both backends are present.
 newtype BhOptions = BhOptions
   { bhOutputDir :: FilePath
   }
@@ -42,25 +38,13 @@ initialBhOptions =
     { bhOutputDir = "html"
     }
 
-bhFlags :: [OptDescr (Flag BhOptions)]
-bhFlags =
-  [ Option
-      []
-      ["blindhuhn-html-dir"]
-      (ReqArg bhOutputDirFlag "DIR")
-      "directory in which Blindhuhn HTML and index files are placed (default: html)"
-  ]
-
-bhOutputDirFlag :: FilePath -> Flag BhOptions
-bhOutputDirFlag dir options = pure options {bhOutputDir = dir}
-
 backend' :: Backend' BhOptions BhEnv BhModuleEnv BhModule BhDef
 backend' =
   Backend'
     { backendName = "blindhuhn",
       backendVersion = Just versionString,
       options = initialBhOptions,
-      commandLineFlags = bhFlags,
+      commandLineFlags = [],
       isEnabled = const True,
       preCompile = bhPreCompile,
       postCompile = bhPostCompile,
