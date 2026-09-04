@@ -10,9 +10,8 @@ import Agda.Compiler.Backend
   ( Definition
   , defName
   , nameBindingSite
-  , qnameName
-  , qnameToConcrete
   )
+import Agda.Syntax.Abstract.Name (qnameModule, qnameName)
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position (posCol, posLine, posPos, rStart)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
@@ -58,11 +57,13 @@ fromDefinition :: TopLevelModuleName -> Definition -> Maybe Entry
 fromDefinition moduleName definition = do
   start <- rStart $ nameBindingSite $ qnameName $ defName definition
   let position = fromIntegral $ posPos start
-      moduleText = prettyShow moduleName
+      pageModuleText = prettyShow moduleName
+      definitionName = defName definition
+      moduleText = prettyShow $ qnameModule definitionName
   pure Entry
-    { indexName = prettyShow $ qnameToConcrete $ defName definition
+    { indexName = prettyShow $ qnameName definitionName
     , indexModule = moduleText
-    , indexPath = URI.encode (moduleText ++ ".html") ++ "#" ++ show position
+    , indexPath = URI.encode (pageModuleText ++ ".html") ++ "#" ++ show position
     , indexPosition = position
     , indexLine = fromIntegral $ posLine start
     , indexColumn = fromIntegral $ posCol start
