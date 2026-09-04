@@ -1,5 +1,5 @@
 { mkDerivation, aeson, Agda, base, containers, deepseq, filepath
-, lib, package-version, text, uri-encode
+, lib, text, uri-encode
 }:
 mkDerivation {
   pname = "Blindhuhn";
@@ -8,8 +8,7 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
-    aeson Agda base containers deepseq filepath package-version text
-    uri-encode
+    aeson Agda base containers deepseq filepath text uri-encode
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [ aeson base text ];

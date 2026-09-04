@@ -13,9 +13,9 @@ import Agda.Compiler.Backend
   , qnameName
   , qnameToConcrete
   )
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position (posCol, posLine, posPos, rStart)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
-import Agda.Utils.Pretty (prettyShow)
 
 import Control.DeepSeq (NFData)
 import Data.Aeson (ToJSON(..), encode, object, (.=))

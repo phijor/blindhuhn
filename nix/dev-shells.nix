@@ -5,7 +5,6 @@
   makeWrapper,
   haskellPackages,
   packages,
-  pkgconfig,
   zlib,
   icu,
 }:
@@ -26,7 +25,6 @@ let
     haskellPackages.fourmolu
     haskellPackages.hpack
 
-    pkgconfig
     zlib.dev
     zlib.out
     icu

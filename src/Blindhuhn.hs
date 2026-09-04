@@ -7,7 +7,7 @@ module Blindhuhn
   )
 where
 
-import Agda.Compiler.Backend (Backend (..), Backend' (isEnabled))
+import Agda.Compiler.Backend qualified as B
 import Agda.Interaction.Highlighting.HTML (htmlBackend)
 import Agda.Main (runAgda')
 import Blindhuhn.Backend (backend)
@@ -22,8 +22,9 @@ run = do
   args <- getArgs
   runAgda' [alwaysEnabled htmlBackend, backend (htmlDir args)]
   where
-    alwaysEnabled (Backend backend') =
-      Backend backend' {isEnabled = const True}
+    alwaysEnabled :: B.Backend -> B.Backend
+    alwaysEnabled (B.Backend backend') =
+      B.Backend backend' {B.isEnabled = const True}
 
     htmlDir :: [String] -> String
     htmlDir args = fromMaybe "html" $ go args

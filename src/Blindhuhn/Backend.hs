@@ -1,7 +1,6 @@
 module Blindhuhn.Backend (backend) where
 
 import Agda.Compiler.Backend
-import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Utils.IO.UTF8 (writeTextToFile)
 import Blindhuhn.Index qualified as Index
 import Blindhuhn.Version (versionString)
@@ -9,6 +8,7 @@ import Control.DeepSeq (NFData)
 import Control.Monad.IO.Class (liftIO)
 import Data.Map qualified as Map
 import Data.Maybe (mapMaybe)
+import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 
@@ -41,8 +41,8 @@ initialBhOptions =
 backend' :: Backend' BhOptions BhEnv BhModuleEnv BhModule BhDef
 backend' =
   Backend'
-    { backendName = "blindhuhn",
-      backendVersion = Just versionString,
+    { backendName = Text.pack "blindhuhn",
+      backendVersion = Just $ Text.pack versionString,
       options = initialBhOptions,
       commandLineFlags = [],
       isEnabled = const True,
@@ -52,7 +52,9 @@ backend' =
       postModule = bhPostModule,
       compileDef = bhCompileDef,
       scopeCheckingSuffices = False,
-      mayEraseType = const $ pure True
+      mayEraseType = const $ pure True,
+      backendInteractTop = Nothing,
+      backendInteractHole = Nothing
     }
 
 bhPreCompile :: BhOptions -> TCM BhEnv

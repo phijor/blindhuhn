@@ -19,7 +19,7 @@
       ...
     }:
     let
-      ghcVersions = [ "ghc927" ];
+      ghcVersions = [ "ghc910" ];
     in
     {
       overlays = import ./nix/overlays.nix (
