@@ -52,7 +52,7 @@
           packages = p: [ p.Blindhuhn ];
         };
 
-        formatter = pkgs.alejandra;
+        formatter = pkgs.nixfmt;
 
         defaultPackage = packages.default;
         defaultApp = app.default;
