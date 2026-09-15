@@ -3,6 +3,7 @@
   path,
   symlinkJoin,
   makeWrapper,
+  fourmolu,
   haskellPackages,
   packages,
   zlib,
@@ -18,13 +19,14 @@ let
     '';
   };
 
-  buildInputs = [
+  nativeBuildInputs = [
     cabal-with-nix
     haskellPackages.haskell-language-server
     haskellPackages.implicit-hie
-    haskellPackages.fourmolu
+    fourmolu
     haskellPackages.hpack
-
+  ];
+  buildInputs = [
     zlib.dev
     zlib.out
     icu
@@ -32,7 +34,7 @@ let
 in
 {
   default = haskellPackages.shellFor {
-    inherit packages buildInputs;
+    inherit packages buildInputs nativeBuildInputs;
 
     withHoogle = true;
 
