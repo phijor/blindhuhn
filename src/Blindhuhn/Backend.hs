@@ -2,6 +2,7 @@ module Blindhuhn.Backend (backend) where
 
 import Agda.Compiler.Backend
 import Agda.Interaction.Imports (getNonMainInterface)
+import Agda.Interaction.Options (ArgDescr (..), OptDescr (..))
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Scope.Base (
   NameSpaceId (..),
@@ -36,8 +37,8 @@ backend outputDir = Backend backend'
     Backend'
       { backendName = Text.pack "blindhuhn"
       , backendVersion = Just $ Text.pack versionString
-      , options = Options {bhOutputDir = outputDir}
-      , commandLineFlags = []
+      , options = Options {bhOutputDir = outputDir, bhOnlyRoot = False}
+      , commandLineFlags = blindhuhnCommandLineFlags
       , isEnabled = const True
       , preCompile = bhPreCompile
       , postCompile = bhPostCompile
@@ -50,15 +51,29 @@ backend outputDir = Backend backend'
       , backendInteractHole = Nothing
       }
 
-newtype Options = Options
+data Options = Options
   { bhOutputDir :: FilePath
+  , bhOnlyRoot :: Bool
   }
   deriving (Eq, Generic)
 
 instance NFData Options
 
-newtype Env = Env
+blindhuhnCommandLineFlags :: [OptDescr (Flag Options)]
+blindhuhnCommandLineFlags =
+  [ Option
+      []
+      ["blindhuhn-only-root"]
+      (NoArg enableOnlyRoot)
+      "restrict the index to the module passed on the command line, dropping modules pulled in via `import`"
+  ]
+ where
+  enableOnlyRoot :: Flag Options
+  enableOnlyRoot opts = pure opts {bhOnlyRoot = True}
+
+data Env = Env
   { bhEnvOptions :: Options
+  , bhEnvRootModule :: Maybe TopLevelModuleName
   }
 
 data ModuleEnv = ModuleEnv
@@ -71,7 +86,9 @@ newtype BhModule = BhModule {entries :: [Index.Entry]}
 newtype BhDef = BhDef {entry :: Maybe Index.Entry}
 
 bhPreCompile :: Options -> TCM Env
-bhPreCompile options = pure $ Env options
+bhPreCompile options = do
+  rootModule <- currentTopLevelModule
+  pure $ Env options rootModule
 
 -- | Compute visibilities of definitions.
 --
@@ -166,6 +183,15 @@ bhPostCompile ::
   -> Map.Map TopLevelModuleName BhModule
   -> TCM ()
 bhPostCompile env _isMain modules = do
-  let entries' = concatMap entries $ Map.elems modules
-  let output = bhOutputDir (bhEnvOptions env) </> "index.json"
+  let opts = bhEnvOptions env
+  modules' <-
+    if bhOnlyRoot opts then case bhEnvRootModule env of
+      Nothing ->
+        genericError
+          "blindhuhn: --blindhuhn-only-root was given, but Agda did not report a current top-level module (no input file checked?)"
+      Just m -> pure $ Map.filterWithKey (\k _ -> k == m) modules
+    else
+      pure modules
+  let entries' = concatMap entries $ Map.elems modules'
+  let output = bhOutputDir opts </> "index.json"
   liftIO $ writeTextToFile output (Index.render entries')
