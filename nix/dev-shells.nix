@@ -10,17 +10,8 @@
   icu,
 }:
 let
-  cabal-with-nix = symlinkJoin {
-    name = "cabal";
-    paths = [ haskellPackages.cabal-install ];
-    buildInputs = [ makeWrapper ];
-    postBuild = ''
-      wrapProgram $out/bin/cabal --add-flags "--enable-nix"
-    '';
-  };
-
   nativeBuildInputs = [
-    cabal-with-nix
+    haskellPackages.cabal-install
     haskellPackages.haskell-language-server
     haskellPackages.implicit-hie
     fourmolu
