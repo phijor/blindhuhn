@@ -1,8 +1,8 @@
-module Blindhuhn.DefTree
-  ( DefWith(..)
-  , DefTree(..)
-  , insert
-  ) where
+module Blindhuhn.DefTree (
+  DefWith (..),
+  DefTree (..),
+  insert,
+) where
 
 import Agda.Compiler.Backend (Definition, defName)
 import Agda.Syntax.Abstract.Name (qnameModule, qnameToMName)
@@ -21,7 +21,7 @@ insert definition tree@(DefTree definitions) =
   case insertIntoExisting definition tree of
     Just tree' -> tree'
     Nothing -> DefTree $ DefWith definition (DefTree children) : siblings
-  where
+ where
   newName = defName definition
   newModule = qnameToMName newName
 
@@ -32,7 +32,7 @@ insert definition tree@(DefTree definitions) =
 -- distinguish a nested definition from a new root definition.
 insertIntoExisting :: Definition -> DefTree -> Maybe DefTree
 insertIntoExisting definition (DefTree definitions) = go definitions
-  where
+ where
   newName = defName definition
   newModule = qnameToMName newName
 
@@ -41,7 +41,7 @@ insertIntoExisting definition (DefTree definitions) = go definitions
     | newModule == qnameToMName (defName $ def first) =
         Just $ DefTree (first : rest)
     | qnameModule newName == qnameToMName (defName $ def first) =
-        Just $ DefTree (first { with = insert definition (with first) } : rest)
+        Just $ DefTree (first {with = insert definition (with first)} : rest)
     | otherwise = case insertIntoExisting definition (with first) of
-        Just nested -> Just $ DefTree (first { with = nested } : rest)
+        Just nested -> Just $ DefTree (first {with = nested} : rest)
         Nothing -> (\(DefTree nested) -> DefTree (first : nested)) <$> go rest

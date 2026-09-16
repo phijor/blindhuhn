@@ -8,9 +8,10 @@ import-export-style: diff-friendly
 import-grouping: by-scope-then-qualified
 in-style: no-space
 indent-wheres: false
+indentation: 2
 let-style: auto
 newlines-between-decls: 1
-record-brace-space: false
+record-brace-space: true
 record-style: knr
 respectful: true
 single-constraint-parens: auto
