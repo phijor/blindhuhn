@@ -56,13 +56,25 @@ executable Blindhuhn
 test-suite Blindhuhn-test
     import:           warnings
     default-language: GHC2021
-    -- other-modules:
+    other-modules:
+      Golden
+      Unit
     -- other-extensions:
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Main.hs
+    build-tool-depends:
+        Blindhuhn:Blindhuhn
     build-depends:
         base ^>=4.20.2.0,
         Blindhuhn,
         aeson ^>=2.2.4.1,
-        text ^>=2.1.3
+        text ^>=2.1.3,
+        bytestring,
+        directory,
+        filepath,
+        process,
+        tasty,
+        tasty-golden,
+        tasty-hunit,
+        temporary
