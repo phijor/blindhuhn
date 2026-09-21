@@ -1,80 +1,86 @@
-cabal-version:      3.4
-name:               Blindhuhn
-version:            0.1.0.0
-synopsis:           Auch ein blindes Huhn findet mal ein Korn
+cabal-version: 3.4
+name: Blindhuhn
+version: 0.1.0.0
+synopsis: Auch ein blindes Huhn findet mal ein Korn
 -- description:
-license:            MIT
-license-file:       LICENSE
-author:             Philipp Joram
-maintainer:         mail@phijor.me
+license: MIT
+license-file: LICENSE
+author: Philipp Joram
+maintainer: mail@phijor.me
 -- copyright:
-build-type:         Simple
-extra-doc-files:    CHANGELOG.md
--- extra-source-files:
+build-type: Simple
 
+-- extra-doc-files:
+-- extra-source-files:
 common warnings
-    ghc-options: -Wall
+  ghc-options: -Wall
 
 library
-    import:           warnings
-    exposed-modules:
-      Blindhuhn
-      Blindhuhn.Backend
-      Blindhuhn.DefTree
-      Blindhuhn.Index
-      Blindhuhn.Version
-    other-modules:
-      Paths_Blindhuhn
-    autogen-modules:
-      Paths_Blindhuhn
-    -- other-modules:
-    -- other-extensions:
-    build-depends:
-        base ^>=4.20.2.0
-      , Agda ^>=2.8.0
-      , aeson ^>=2.2.4.1
-      , deepseq
-      , containers
-      , filepath
-      , text ^>=2.1.3
-      , uri-encode ^>=1.5.0.7
-    hs-source-dirs:   src
-    default-language: GHC2021
+  import: warnings
+  exposed-modules:
+    Blindhuhn
+    Blindhuhn.Backend
+    Blindhuhn.DefTree
+    Blindhuhn.Index
+    Blindhuhn.Version
+
+  other-modules:
+    Paths_Blindhuhn
+
+  autogen-modules:
+    Paths_Blindhuhn
+
+  -- other-modules:
+  -- other-extensions:
+  build-depends:
+    Agda ^>=2.8.0,
+    aeson ^>=2.2.4.1,
+    base ^>=4.20.2.0,
+    containers,
+    deepseq,
+    filepath,
+    text ^>=2.1.3,
+    uri-encode ^>=1.5.0.7,
+
+  hs-source-dirs: src
+  default-language: GHC2021
 
 executable Blindhuhn
-    import:           warnings
-    main-is:          Main.hs
-    -- other-modules:
-    -- other-extensions:
-    build-depends:
-        base ^>=4.20.2.0,
-        Blindhuhn
+  import: warnings
+  main-is: Main.hs
+  -- other-modules:
+  -- other-extensions:
+  build-depends:
+    Blindhuhn,
+    base ^>=4.20.2.0,
 
-    hs-source-dirs:   app
-    default-language: GHC2021
+  hs-source-dirs: app
+  default-language: GHC2021
 
 test-suite Blindhuhn-test
-    import:           warnings
-    default-language: GHC2021
-    other-modules:
-      Golden
-      Unit
-    -- other-extensions:
-    type:             exitcode-stdio-1.0
-    hs-source-dirs:   test
-    main-is:          Main.hs
-    build-tool-depends:
-        Blindhuhn:Blindhuhn
-    build-depends:
-        base ^>=4.20.2.0,
-        Blindhuhn,
-        aeson ^>=2.2.4.1,
-        text ^>=2.1.3,
-        bytestring,
-        directory,
-        filepath,
-        process,
-        tasty,
-        tasty-golden,
-        tasty-hunit,
-        temporary
+  import: warnings
+  default-language: GHC2021
+  other-modules:
+    Golden
+    Unit
+
+  -- other-extensions:
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Main.hs
+  build-tool-depends:
+    Blindhuhn:Blindhuhn
+
+  build-depends:
+    Blindhuhn,
+    aeson ^>=2.2.4.1,
+    base ^>=4.20.2.0,
+    bytestring,
+    directory,
+    filepath,
+    process,
+    tasty,
+    tasty-golden,
+    tasty-hunit,
+    temporary,
+    text ^>=2.1.3,
