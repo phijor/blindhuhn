@@ -1,6 +1,6 @@
 module Main where
 
-import qualified Blindhuhn (run)
+import Blindhuhn qualified (run)
 
 main :: IO ()
 main = Blindhuhn.run
