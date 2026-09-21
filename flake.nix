@@ -3,60 +3,17 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
-
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    git-hooks-nix = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      flake-utils,
-      ...
-    }:
-    let
-      ghcVersions = [ "ghc910" ];
-    in
-    {
-      overlays = import ./nix/overlays.nix (
-        hsfinal: _: {
-          Blindhuhn = hsfinal.callCabal2nix "Blindhuhn" ./. { };
-        }
-      );
-    }
-    // flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ self.overlays.default ];
-        };
-      in
-      rec {
-        packages = pkgs.callPackages ./nix/packages.nix {
-          inherit ghcVersions;
-          name = "Blindhuhn";
-        };
-        app = {
-          blindhuhn = flake-utils.lib.mkApp {
-            name = "blindhuhn";
-            drv = packages.default;
-          };
-          default = app.blindhuhn;
-        };
-        devShells = pkgs.callPackages ./nix/dev-shells.nix {
-          packages = p: [ p.Blindhuhn ];
-        };
-
-        formatter = pkgs.nixfmt;
-
-        defaultPackage = packages.default;
-        defaultApp = app.default;
-        devShell = devShells.default;
-      }
-    );
+    inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (import ./nix/flake-module.nix);
 }
