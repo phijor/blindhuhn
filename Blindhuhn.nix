@@ -18,5 +18,5 @@ mkDerivation {
   ];
   description = "Auch ein blindes Huhn findet mal ein Korn";
   license = lib.meta.getLicenseFromSpdxId "MIT";
-  mainProgram = "Blindhuhn";
+  mainProgram = "blindhuhn";
 }

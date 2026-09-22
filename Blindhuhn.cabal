@@ -45,7 +45,7 @@ library
   hs-source-dirs: src
   default-language: GHC2021
 
-executable Blindhuhn
+executable blindhuhn
   import: warnings
   main-is: Main.hs
   -- other-modules:
@@ -57,7 +57,7 @@ executable Blindhuhn
   hs-source-dirs: app
   default-language: GHC2021
 
-test-suite Blindhuhn-test
+test-suite blindhuhn-test
   import: warnings
   default-language: GHC2021
   other-modules:
@@ -69,7 +69,7 @@ test-suite Blindhuhn-test
   hs-source-dirs: test
   main-is: Main.hs
   build-tool-depends:
-    Blindhuhn:Blindhuhn
+    Blindhuhn:blindhuhn
 
   build-depends:
     Blindhuhn,

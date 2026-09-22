@@ -7,10 +7,10 @@ final: prev: {
         addBinToPath = overrideCabal (drv: {
           # `Setup.hs test` (used by nixpkgs' Haskell builder) doesn't put
           # build-tool-depends executables on PATH the way `cabal test` does,
-          # so the golden tests' `callProcess "Blindhuhn"` can't find the
+          # so the golden tests' `callProcess "blindhuhn"` can't find the
           # just-built executable without this.
           preCheck = ''
-            export PATH="$PWD/dist/build/Blindhuhn:$PATH"
+            export PATH="$PWD/dist/build/blindhuhn:$PATH"
           ''
           + (drv.preCheck or "");
         });

@@ -57,6 +57,6 @@ runBlindhuhn ::
 runBlindhuhn dir =
   withSystemTempDirectory "blindhuhn-golden" $ \tmp -> do
     callProcess
-      "Blindhuhn"
+      "blindhuhn"
       ["--no-libraries", "-i", dir, "--blindhuhn-only-root", "--html-dir", tmp, dir </> "Main.agda"]
     BS.readFile (tmp </> "index.json")
