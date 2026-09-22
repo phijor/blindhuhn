@@ -4,9 +4,10 @@ import Control.Monad (filterM)
 import Data.ByteString.Lazy (ByteString)
 import Data.List (sort)
 import System.Directory (doesDirectoryExist, listDirectory)
+import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
-import System.Process (callProcess)
+import System.Process (CreateProcess (cwd), createProcess, proc, waitForProcess)
 import Test.Tasty (TestName, TestTree, testGroup)
 import Test.Tasty.Golden (goldenVsString)
 
@@ -44,19 +45,22 @@ mkGoldenTest name =
 --
 -- The @Blindhuhn@ is executable found via @build-tool-depends@.
 --
--- @Blindhuhn@ is instructed to only generated index entries for
--- definitions in @Main.agda@ (via @--blindhuhn-only-root@).
--- This way, the generated index should not change just because
--- an imported module changed.  The invocation does not run the
--- HTML backend (@--html@ is ommited), thus does not generate
--- any HTML files.
+-- Each test directory declare an Agda library with name "test"
+-- in @test.agda-lib@.  @Blindhuhn@ is instructed to generated
+-- index entries only for definitions beloning to this library
+-- (via @--blindhuhn-index test@).  This makes sure that the
+-- index it generates does not change just because an imported
+-- module changed.  @Blindhuhn@ does not run the HTML backend
+-- (@--html@ is ommited), thus does not generate any HTML files.
 runBlindhuhn ::
   FilePath
   -- ^ Directory containing a single golden test
   -> IO ByteString
 runBlindhuhn dir =
   withSystemTempDirectory "blindhuhn-golden" $ \tmp -> do
-    callProcess
-      "blindhuhn"
-      ["--no-libraries", "-i", dir, "--blindhuhn-only-root", "--html-dir", tmp, dir </> "Main.agda"]
-    BS.readFile (tmp </> "index.json")
+    let blindhuhn = proc "blindhuhn" ["--blindhuhn-index", "test", "--html-dir", tmp, "Main.agda"]
+    (_, _, _, hdl) <- createProcess $ blindhuhn {cwd = Just dir}
+    exitCode <- waitForProcess hdl
+    case exitCode of
+      ExitSuccess -> BS.readFile (tmp </> "index.json")
+      ExitFailure r -> fail $ "Blinhuhn exited with code " ++ show r

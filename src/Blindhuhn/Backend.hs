@@ -1,7 +1,9 @@
 module Blindhuhn.Backend (backend) where
 
 import Agda.Compiler.Backend
+import Agda.Interaction.FindFile (findFile)
 import Agda.Interaction.Imports (getNonMainInterface)
+import Agda.Interaction.Library (AgdaLibFile (..), LibName, parseLibName)
 import Agda.Interaction.Options (ArgDescr (..), OptDescr (..))
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Scope.Base (
@@ -17,10 +19,12 @@ import Agda.Utils.IO.UTF8 (writeTextToFile)
 import Agda.Utils.Lens ((^.))
 import Control.DeepSeq (NFData)
 import Control.Monad.IO.Class (liftIO)
+import Data.HashSet (HashSet, empty)
 import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 
+import Data.HashSet qualified as HashSet
 import Data.List.NonEmpty qualified as NonEmpty
 import Data.Map qualified as Map
 import Data.Text qualified as Text
@@ -32,12 +36,15 @@ import Blindhuhn.Index qualified as Index
 backend :: FilePath -> Backend
 backend outputDir = Backend backend'
  where
+  options :: Options
+  options = Options {bhOutputDir = outputDir, bhLibraries = empty}
+
   backend' :: Backend' Options Env ModuleEnv BhModule BhDef
   backend' =
     Backend'
       { backendName = Text.pack "blindhuhn"
       , backendVersion = Just $ Text.pack versionString
-      , options = Options {bhOutputDir = outputDir, bhOnlyRoot = False}
+      , options = options
       , commandLineFlags = blindhuhnCommandLineFlags
       , isEnabled = const True
       , preCompile = bhPreCompile
@@ -53,7 +60,7 @@ backend outputDir = Backend backend'
 
 data Options = Options
   { bhOutputDir :: FilePath
-  , bhOnlyRoot :: Bool
+  , bhLibraries :: HashSet LibName
   }
   deriving (Eq, Generic)
 
@@ -63,17 +70,18 @@ blindhuhnCommandLineFlags :: [OptDescr (Flag Options)]
 blindhuhnCommandLineFlags =
   [ Option
       []
-      ["blindhuhn-only-root"]
-      (NoArg enableOnlyRoot)
-      "restrict the index to the module passed on the command line, dropping modules pulled in via `import`"
+      ["blindhuhn-index"]
+      (ReqArg indexFlag "LIBRARY")
+      "index modules from the given library (default: all modules). Can be given multiple times"
   ]
  where
-  enableOnlyRoot :: Flag Options
-  enableOnlyRoot opts = pure opts {bhOnlyRoot = True}
+  indexFlag :: String -> Flag Options
+  indexFlag arg o = do
+    let libname = parseLibName arg
+    return $ o {bhLibraries = HashSet.insert libname $ bhLibraries o}
 
 data Env = Env
   { bhEnvOptions :: Options
-  , bhEnvRootModule :: Maybe TopLevelModuleName
   }
 
 data ModuleEnv = ModuleEnv
@@ -83,12 +91,13 @@ data ModuleEnv = ModuleEnv
 
 newtype BhModule = BhModule {entries :: [Index.Entry]}
 
+emptyModule :: BhModule
+emptyModule = BhModule {entries = []}
+
 newtype BhDef = BhDef {entry :: Maybe Index.Entry}
 
 bhPreCompile :: Options -> TCM Env
-bhPreCompile options = do
-  rootModule <- currentTopLevelModule
-  pure $ Env options rootModule
+bhPreCompile options = pure $ Env options
 
 -- | Compute visibilities of definitions.
 --
@@ -100,9 +109,25 @@ bhPreModule ::
   -> TopLevelModuleName
   -> Maybe FilePath
   -> TCM (Recompile ModuleEnv BhModule)
-bhPreModule _env _isMain moduleName _interfacePath = do
-  visibilities <- visibilityMap . iInsideScope <$> getNonMainInterface moduleName Nothing
-  pure $ Recompile $ ModuleEnv moduleName visibilities
+bhPreModule env _isMain moduleName _interfacePath = do
+  shouldIndex <- shouldIndexModule $ bhLibraries $ bhEnvOptions env
+  case shouldIndex of
+    False -> do
+      pure $ Skip emptyModule
+    True -> do
+      visibilities <- visibilityMap . iInsideScope <$> getNonMainInterface moduleName Nothing
+      pure $ Recompile $ ModuleEnv moduleName visibilities
+ where
+  getModuleLibs :: TCM (HashSet LibName)
+  getModuleLibs = do
+    sourcePath <- findFile moduleName >>= srcFilePath
+    libs <- getAgdaLibFiles sourcePath moduleName
+    pure $ HashSet.fromList $ map _libName libs
+
+  shouldIndexModule :: HashSet LibName -> TCM Bool
+  shouldIndexModule included
+    | null included = pure True
+    | otherwise = not . null . HashSet.intersection included <$> getModuleLibs
 
 -- | Create an index entry for a definition.
 --
@@ -184,14 +209,6 @@ bhPostCompile ::
   -> TCM ()
 bhPostCompile env _isMain modules = do
   let opts = bhEnvOptions env
-  modules' <-
-    if bhOnlyRoot opts then case bhEnvRootModule env of
-      Nothing ->
-        genericError
-          "blindhuhn: --blindhuhn-only-root was given, but Agda did not report a current top-level module (no input file checked?)"
-      Just m -> pure $ Map.filterWithKey (\k _ -> k == m) modules
-    else
-      pure modules
-  let entries' = concatMap entries $ Map.elems modules'
+  let entries' = concatMap entries $ Map.elems modules
   let output = bhOutputDir opts </> "index.json"
   liftIO $ writeTextToFile output (Index.render entries')

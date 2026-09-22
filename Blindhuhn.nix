@@ -1,6 +1,6 @@
 { mkDerivation, aeson, Agda, base, bytestring, containers, deepseq
 , directory, filepath, lib, process, tasty, tasty-golden
-, tasty-hunit, temporary, text, uri-encode
+, tasty-hunit, temporary, text, unordered-containers, uri-encode
 }:
 mkDerivation {
   pname = "Blindhuhn";
@@ -9,7 +9,8 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
-    aeson Agda base containers deepseq filepath text uri-encode
+    aeson Agda base containers deepseq filepath text
+    unordered-containers uri-encode
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [
