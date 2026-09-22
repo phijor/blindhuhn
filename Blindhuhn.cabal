@@ -20,7 +20,6 @@ library
   exposed-modules:
     Blindhuhn
     Blindhuhn.Backend
-    Blindhuhn.DefTree
     Blindhuhn.Index
     Blindhuhn.Version
 
