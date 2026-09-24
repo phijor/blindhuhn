@@ -13,7 +13,9 @@ build-type: Simple
 -- extra-doc-files:
 -- extra-source-files:
 common warnings
-  ghc-options: -Wall
+  ghc-options:
+    -Wall
+    -Wpartial-fields
 
 library
   import: warnings

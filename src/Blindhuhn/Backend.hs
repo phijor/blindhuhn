@@ -89,20 +89,28 @@ data ModuleEnv = ModuleEnv
   , visibilities :: Map.Map ModuleName (Map.Map NameId Index.Visibility)
   }
 
-newtype BhModule = BhModule {entries :: [Index.Entry]}
+data BhModule
+  = BhModuleIndexed [Index.Entry]
+  | BhModuleSkipped
 
-emptyModule :: BhModule
-emptyModule = BhModule {entries = []}
+moduleEntries :: BhModule -> [Index.Entry]
+moduleEntries (BhModuleIndexed es) = es
+moduleEntries BhModuleSkipped = []
 
 newtype BhDef = BhDef {entry :: Maybe Index.Entry}
 
 bhPreCompile :: Options -> TCM Env
 bhPreCompile options = pure $ Env options
 
--- | Compute visibilities of definitions.
+-- | Prepare a top-level module for indexing.
 --
--- For each top-level module, compute the visibilities of all contained definitions,
--- even if nested in submodules.
+-- First, this checks whether contents of this module should be
+-- indexed at all. If this module does not belong to any of the
+-- modules given by @--blindhuhn-index@ (if any were given at
+-- all), then the module is skipped.
+--
+-- If not skipped, compute the visibilities of all definitions
+-- contained in this module, even if nested in submodules.
 bhPreModule ::
   Env
   -> IsMain
@@ -113,7 +121,7 @@ bhPreModule env _isMain moduleName _interfacePath = do
   shouldIndex <- shouldIndexModule $ bhLibraries $ bhEnvOptions env
   case shouldIndex of
     False -> do
-      pure $ Skip emptyModule
+      pure $ Skip BhModuleSkipped
     True -> do
       visibilities <- visibilityMap . iInsideScope <$> getNonMainInterface moduleName Nothing
       pure $ Recompile $ ModuleEnv moduleName visibilities
@@ -145,6 +153,7 @@ bhCompileDef _env modEnv _isMain definition =
     in
       BhDef entry
 
+-- | Collect all index entries from a module
 bhPostModule ::
   Env
   -> ModuleEnv
@@ -153,7 +162,7 @@ bhPostModule ::
   -> [BhDef]
   -> TCM BhModule
 bhPostModule _env _modEnv _isMain _moduleName defs =
-  pure $ BhModule {entries = mapMaybe entry defs}
+  pure $ BhModuleIndexed (mapMaybe entry defs)
 
 lookupVisibility :: ModuleEnv -> Definition -> Index.Visibility
 lookupVisibility modEnv def =
@@ -209,6 +218,6 @@ bhPostCompile ::
   -> TCM ()
 bhPostCompile env _isMain modules = do
   let opts = bhEnvOptions env
-  let entries' = concatMap entries $ Map.elems modules
+  let entries = concatMap moduleEntries $ Map.elems modules
   let output = bhOutputDir opts </> "index.json"
-  liftIO $ writeTextToFile output (Index.render entries')
+  liftIO $ writeTextToFile output (Index.render entries)
