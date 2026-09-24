@@ -23,7 +23,9 @@ library
     Blindhuhn
     Blindhuhn.Backend
     Blindhuhn.Index
+    Blindhuhn.Name
     Blindhuhn.Version
+    Blindhuhn.VisibilityMap
 
   other-modules:
     Paths_Blindhuhn

@@ -25,8 +25,8 @@ import Network.URI.Encode qualified as URI
 -- | Visibility of a definition in its defining module's scope.
 data Visibility
   = Private
-  | Public
   | Imported
+  | Public
   deriving (Eq, Ord, Show, Generic)
 
 instance NFData Visibility
