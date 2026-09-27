@@ -15,6 +15,7 @@
 
       # Formatting for search UI related files
       programs.prettier.enable = true; # JS/CSS formatting
+      programs.black.enable = true; # For Python scripts
 
       settings.global.excludes = [
         # Golden test files (changing them breaks tests)

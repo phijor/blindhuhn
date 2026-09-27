@@ -13,6 +13,7 @@
     ./pkgs.nix
     ./packages.nix
     ./dev-shell.nix
+    ./indexed.nix
   ];
 
   perSystem = {

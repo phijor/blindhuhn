@@ -7,8 +7,9 @@
       blindhuhn = justStaticExecutables pkgs.haskellPackages.Blindhuhn;
     in
     {
-      packages.default = blindhuhn;
+      packages.blindhuhn = blindhuhn;
       packages.Blindhuhn = pkgs.haskellPackages.Blindhuhn;
+      packages.default = config.packages.blindhuhn;
 
       apps.default = {
         type = "app";
