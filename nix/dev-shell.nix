@@ -2,6 +2,21 @@
 {
   perSystem =
     { config, pkgs, ... }:
+    let
+      vendoredAssets = pkgs.callPackage ./vendored-assets.nix { };
+      haskell-env = [
+        pkgs.haskellPackages.cabal-install
+        pkgs.haskellPackages.haskell-language-server
+        pkgs.haskellPackages.implicit-hie
+        pkgs.fourmolu
+        pkgs.haskellPackages.hpack
+        pkgs.cabal2nix
+      ];
+      web-env = [
+        pkgs.nodejs
+        pkgs.typescript-language-server
+      ];
+    in
     {
       devShells.default = pkgs.haskellPackages.shellFor {
         packages = p: [ p.Blindhuhn ];
@@ -12,15 +27,11 @@
         # *all* dependencies are provided by Nix.
         exactDeps = true;
 
-        nativeBuildInputs = [
-          pkgs.haskellPackages.cabal-install
-          pkgs.haskellPackages.haskell-language-server
-          pkgs.haskellPackages.implicit-hie
-          pkgs.fourmolu
-          pkgs.haskellPackages.hpack
-          pkgs.cabal2nix
-        ]
-        ++ config.pre-commit.settings.enabledPackages;
+        nativeBuildInputs = builtins.concatLists [
+          haskell-env
+          web-env
+          config.pre-commit.settings.enabledPackages
+        ];
 
         buildInputs = [
           pkgs.zlib.dev
@@ -39,6 +50,11 @@
           pkgs.zlib
           pkgs.icu
         ];
+
+        # Points Blindhuhn.Search.Embed at the assets it embeds, fetched
+        # reproducibly by Nix rather than vendored in the repo. See
+        # nix/vendored-assets.nix.
+        BLINDHUHN_VENDORED_ASSETS_DIR = "${vendoredAssets}";
       };
     };
 }

@@ -2,16 +2,18 @@ module Golden (tests) where
 
 import Control.Monad (filterM)
 import Data.ByteString.Lazy (ByteString)
-import Data.List (sort)
-import System.Directory (doesDirectoryExist, listDirectory)
+import Data.List (isInfixOf, sort)
+import System.Directory (doesDirectoryExist, doesFileExist, listDirectory)
 import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import System.Process (CreateProcess (cwd), createProcess, proc, waitForProcess)
 import Test.Tasty (TestName, TestTree, testGroup)
 import Test.Tasty.Golden (goldenVsString)
+import Test.Tasty.HUnit (assertBool, testCase, (@?=))
 
 import Data.ByteString.Lazy qualified as BS
+import Data.ByteString.Lazy.Char8 qualified as BS8
 
 goldenRoot :: FilePath
 goldenRoot = "test/golden"
@@ -27,7 +29,12 @@ tests = do
   names <-
     (sort <$> listDirectory goldenRoot)
       >>= filterM (doesDirectoryExist . (goldenRoot </>))
-  pure $ testGroup "golden" $ map mkGoldenTest names
+  pure $
+    testGroup "golden" $
+      concat $
+        [ mkGoldenTest <$> names
+        , searchTests
+        ]
 
 mkGoldenTest :: TestName -> TestTree
 mkGoldenTest name =
@@ -36,6 +43,13 @@ mkGoldenTest name =
        name
        (testDir </> "index.golden")
        (runBlindhuhn testDir)
+
+runProcess :: CreateProcess -> IO ()
+runProcess process = do
+  (_, _, _, hdl) <- createProcess process
+  exitCode <- waitForProcess hdl
+  exitCode @?= ExitSuccess
+  pure ()
 
 -- | Run @Blindhuhn@ on @Main.agda@ in the test directory @dir@.
 --
@@ -59,8 +73,53 @@ runBlindhuhn ::
 runBlindhuhn dir =
   withSystemTempDirectory "blindhuhn-golden" $ \tmp -> do
     let blindhuhn = proc "blindhuhn" ["--blindhuhn-index", "test", "--html-dir", tmp, "Main.agda"]
-    (_, _, _, hdl) <- createProcess $ blindhuhn {cwd = Just dir}
-    exitCode <- waitForProcess hdl
-    case exitCode of
-      ExitSuccess -> BS.readFile (tmp </> "index.json")
-      ExitFailure r -> fail $ "Blinhuhn exited with code " ++ show r
+    runProcess $ blindhuhn {cwd = Just dir}
+    BS.readFile (tmp </> "index.json")
+
+searchTests :: [TestTree]
+searchTests = [injectSearchUi, refusesReinjection]
+
+-- | Run @Blindhuhn@ with @--html --blindhuhn-search@ on the "basic" golden
+-- test's @Main.agda@, and check that the search UI assets were written and
+-- injected into the generated HTML.
+injectSearchUi :: TestTree
+injectSearchUi =
+  testCase "search: write and inject search UI assets" $
+    withSystemTempDirectory "blindhuhn-golden-search" $ \tmp -> do
+      let dir = goldenRoot </> "basic"
+      let blindhuhn =
+            proc
+              "blindhuhn"
+              ["--html", "--blindhuhn-search", "--blindhuhn-index", "test", "--html-dir", tmp, "Main.agda"]
+      runProcess $ blindhuhn {cwd = Just dir}
+
+      jsExists <- doesFileExist (tmp </> "blindhuhn-search.js")
+      cssExists <- doesFileExist (tmp </> "blindhuhn-search.css")
+      assertBool "blindhuhn-search.js was written" jsExists
+      assertBool "blindhuhn-search.css was written" cssExists
+
+      html <- BS8.readFile (tmp </> "Main.html")
+      assertBool "search script tag was injected into Main.html" ("blindhuhn-search.js" `isInfixOf` BS8.unpack html)
+
+-- | Rerunning @--blindhuhn-search@ over an output directory that already
+-- has an injected @Main.html@ (without @--html@ to regenerate a clean
+-- one) must refuse to run, with a nonzero exit code, rather than
+-- double-inject or silently overwrite the previous injection.
+refusesReinjection :: TestTree
+refusesReinjection =
+  testCase "search: refuses to re-inject into already-injected HTML" $
+    withSystemTempDirectory "blindhuhn-golden-search-reinject" $ \tmp -> do
+      let dir = goldenRoot </> "basic"
+      let firstRun =
+            proc
+              "blindhuhn"
+              ["--html", "--blindhuhn-search", "--blindhuhn-index", "test", "--html-dir", tmp, "Main.agda"]
+      runProcess $ firstRun {cwd = Just dir}
+
+      let secondRun =
+            proc
+              "blindhuhn"
+              ["--blindhuhn-search", "--blindhuhn-index", "test", "--html-dir", tmp, "Main.agda"]
+      (_, _, _, hdl) <- createProcess (secondRun {cwd = Just dir})
+      exitCode <- waitForProcess hdl
+      assertBool "rerun without --html over injected output fails" (exitCode /= ExitSuccess)

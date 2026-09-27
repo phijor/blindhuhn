@@ -1,0 +1,99 @@
+/*
+ * Blindhuhn search UI styles.
+ *
+ * These styles are augmented by Agda's own styles (Agda.css):
+ * `blindhuhn-search.js` applies `.Agda .Module` and `.Agda .Function`
+ * to search results to match appearance with the code color scheme.
+ */
+
+#bh-search-trigger {
+  position: fixed;
+  right: 1em;
+  bottom: 1em;
+  z-index: 1000;
+  width: 2.25em;
+  height: 2.25em;
+  border: 1px solid #404040;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #404040;
+  font-size: 1.1em;
+  font-family: monospace;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+#bh-search-trigger:hover {
+  background: #f0f0f0;
+}
+
+#bh-search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 10vh;
+}
+
+#bh-search-overlay[hidden] {
+  display: none;
+}
+
+#bh-search-modal {
+  width: min(42em, 90vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  background: #ffffff;
+  border: 1px solid #404040;
+  padding: 0.75em;
+  font-family: monospace;
+}
+
+#bh-search-input {
+  font: inherit;
+  padding: 0.4em 0.5em;
+  border: 1px solid #404040;
+}
+
+#bh-search-input:focus {
+  outline: 2px solid #0000cd;
+}
+
+#bh-search-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.bh-search-result {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1em;
+  row-gap: 0.15em;
+  padding: 0.3em 0.2em;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.bh-search-result-link {
+  white-space: nowrap;
+}
+
+/* Agda.css's own `.Agda a[href]:hover` rule already highlights the link on
+ * hover; it has no `:focus` rule though, so keyboard focus needs its own.
+ * The background color is copied from the hover rule. */
+.bh-search-result-link:focus {
+  background-color: #b4eeb4;
+}
+
+.bh-search-result-module {
+  font-size: 0.9em;
+  white-space: nowrap;
+  margin-left: auto;
+}

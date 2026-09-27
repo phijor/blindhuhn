@@ -5,8 +5,10 @@ import Agda.Interaction.FindFile (findFile)
 import Agda.Interaction.Imports (getNonMainInterface)
 import Agda.Interaction.Library (AgdaLibFile (..), LibName, findLib', parseLibName)
 import Agda.Interaction.Options (ArgDescr (..), OptDescr (..))
+import Agda.Syntax.Common.Pretty (Doc, nest, text, vcat)
 import Agda.Utils.IO.UTF8 (writeTextToFile)
 import Control.DeepSeq (NFData)
+import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.HashSet (HashSet, empty)
 import Data.Maybe (mapMaybe)
@@ -20,13 +22,14 @@ import Data.Text qualified as Text
 import Blindhuhn.Version (versionString)
 
 import Blindhuhn.Index qualified as Index
+import Blindhuhn.Search qualified as Search
 import Blindhuhn.VisibilityMap qualified as Vis
 
 backend :: FilePath -> Backend
 backend outputDir = Backend backend'
  where
   options :: Options
-  options = Options {bhOutputDir = outputDir, bhLibraries = empty}
+  options = Options {bhOutputDir = outputDir, bhLibraries = empty, bhSearchEnabled = False}
 
   backend' :: Backend' Options Env ModuleEnv BhModule BhDef
   backend' =
@@ -50,6 +53,7 @@ backend outputDir = Backend backend'
 data Options = Options
   { bhOutputDir :: FilePath
   , bhLibraries :: HashSet LibName
+  , bhSearchEnabled :: Bool
   }
   deriving (Eq, Generic)
 
@@ -62,12 +66,20 @@ blindhuhnCommandLineFlags =
       ["blindhuhn-index"]
       (ReqArg indexFlag "LIBRARY")
       "index modules from the given library (default: all modules). Can be given multiple times"
+  , Option
+      []
+      ["blindhuhn-search"]
+      (NoArg searchFlag)
+      "inject a client-side search UI into the generated HTML (requires --html)"
   ]
  where
   indexFlag :: String -> Flag Options
   indexFlag arg o = do
     let libname = parseLibName arg
     return $ o {bhLibraries = HashSet.insert libname $ bhLibraries o}
+
+  searchFlag :: Flag Options
+  searchFlag o = return $ o {bhSearchEnabled = True}
 
 data Env = Env
   { bhEnvOptions :: Options
@@ -167,6 +179,32 @@ bhPostCompile ::
   -> TCM ()
 bhPostCompile env _isMain modules = do
   let opts = bhEnvOptions env
+  let outputDir = bhOutputDir opts
+
   let entries = concatMap moduleEntries $ Map.elems modules
-  let output = bhOutputDir opts </> "index.json"
-  liftIO $ writeTextToFile output (Index.render entries)
+  let index = Index.render entries
+
+  -- Write search index to output directory
+  liftIO $ writeTextToFile (outputDir </> "index.json") index
+
+  -- If enabled, inject search UI into existing pages.
+  when (bhSearchEnabled opts) $ do
+    previouslyInjected <- liftIO $ Search.findPreviousInjections outputDir
+    case previouslyInjected of
+      [] -> liftIO $ Search.inject outputDir (Search.hashIndex index)
+      files -> do
+        -- Refuse to modify pages if they already contain injections.
+        -- In principle, we could replace the injection but that is
+        -- error-prone if we don't properly parse the page HTML.
+        let msg = previousInjectionDoc files
+        reportSDoc "blindhuhn.search" 1 $ pure msg
+        genericDocError msg
+ where
+  previousInjectionDoc :: [FilePath] -> Doc
+  previousInjectionDoc files =
+    vcat
+      [ text "--blindhuhn-search: refusing to inject the search UI."
+      , text "The following HTML files already contain a previous injection:"
+      , nest 2 (vcat (map text files))
+      , text "Regenerate clean HTML files (e.g. by rerunning with `--html`) before retrying `--blindhuhn-search`."
+      ]

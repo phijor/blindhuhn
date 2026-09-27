@@ -9,6 +9,10 @@ author: Philipp Joram
 maintainer: mail@phijor.me
 -- copyright:
 build-type: Simple
+extra-source-files:
+  data/search/blindhuhn-search-worker.js
+  data/search/blindhuhn-search.css
+  data/search/blindhuhn-search.js
 
 -- extra-doc-files:
 -- extra-source-files:
@@ -24,24 +28,30 @@ library
     Blindhuhn.Backend
     Blindhuhn.Index
     Blindhuhn.Name
+    Blindhuhn.Search
     Blindhuhn.Version
     Blindhuhn.VisibilityMap
 
   other-modules:
+    Blindhuhn.Search.Embed
     Paths_Blindhuhn
 
   autogen-modules:
     Paths_Blindhuhn
 
-  -- other-modules:
   -- other-extensions:
   build-depends:
     Agda ^>=2.8.0,
     aeson ^>=2.2.4.1,
     base ^>=4.20.2.0,
+    bytestring,
     containers,
     deepseq,
+    directory,
+    file-embed ^>=0.0.16,
     filepath,
+    hashable,
+    template-haskell,
     text ^>=2.1.3,
     unordered-containers ^>=0.2.20.1,
     uri-encode ^>=1.5.0.7,

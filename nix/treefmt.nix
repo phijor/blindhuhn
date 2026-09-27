@@ -13,6 +13,9 @@
       programs.fourmolu.enable = true; # respects fourmolu.yaml
       programs.cabal-gild.enable = true;
 
+      # Formatting for search UI related files
+      programs.prettier.enable = true; # JS/CSS formatting
+
       settings.global.excludes = [
         # Golden test files (changing them breaks tests)
         "test/golden/**"

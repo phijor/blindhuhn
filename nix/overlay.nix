@@ -27,12 +27,22 @@ final: prev: {
           ''
           + (drv.preCheck or "");
         });
+        # Fetch the third-party JS for the search UI using Nix, and make the
+        # Haskell project aware of its location.
+        vendoredAssets = final.callPackage ./vendored-assets.nix { };
+        withVendoredAssets = overrideCabal (drv: {
+          passthru.assets = vendoredAssets;
+          env = (drv.env or { }) // {
+            BLINDHUHN_VENDORED_ASSETS_DIR = "${vendoredAssets}";
+          };
+        });
         Blindhuhn = hself.callPackage ../Blindhuhn.nix { };
       in
       {
         Blindhuhn = final.lib.pipe Blindhuhn [
           excludeNixFiles
           addBinToPath
+          withVendoredAssets
         ];
       }
     );
