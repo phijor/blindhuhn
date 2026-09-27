@@ -3,7 +3,7 @@ module Blindhuhn.Backend (backend) where
 import Agda.Compiler.Backend
 import Agda.Interaction.FindFile (findFile)
 import Agda.Interaction.Imports (getNonMainInterface)
-import Agda.Interaction.Library (AgdaLibFile (..), LibName, parseLibName)
+import Agda.Interaction.Library (AgdaLibFile (..), LibName, findLib', parseLibName)
 import Agda.Interaction.Options (ArgDescr (..), OptDescr (..))
 import Agda.Utils.IO.UTF8 (writeTextToFile)
 import Control.DeepSeq (NFData)
@@ -115,16 +115,23 @@ bhPreModule env _isMain moduleName _interfacePath = do
       visibilities <- Vis.fromScopeInfo . iInsideScope <$> getNonMainInterface moduleName Nothing
       pure $ Recompile $ ModuleEnv moduleName visibilities
  where
-  getModuleLibs :: TCM (HashSet LibName)
-  getModuleLibs = do
-    sourcePath <- findFile moduleName >>= srcFilePath
-    libs <- getAgdaLibFiles sourcePath moduleName
-    pure $ HashSet.fromList $ map _libName libs
+  -- Does this collection of library files contain one of the given name?
+  -- This lookup takes Agda's bespoke version handling into account:
+  -- A library file with @name: cubical-0.9@ is considered to have name
+  -- @cubical@.
+  hasLibByName :: [AgdaLibFile] -> LibName -> Bool
+  hasLibByName libs name = not $ null $ findLib' _libName name libs
 
+  -- Do any of the module's owning libraries match any of the
+  -- @--blindhuhn-index@ names? If they do, then this module should
+  -- be indexed.
   shouldIndexModule :: HashSet LibName -> TCM Bool
-  shouldIndexModule included
-    | null included = pure True
-    | otherwise = not . null . HashSet.intersection included <$> getModuleLibs
+  shouldIndexModule libsToIndex
+    | null libsToIndex = pure True
+    | otherwise = do
+        sourcePath <- findFile moduleName >>= srcFilePath
+        libFiles <- getAgdaLibFiles sourcePath moduleName
+        pure $ any (hasLibByName libFiles) libsToIndex
 
 -- | Create an index entry for a definition.
 --
