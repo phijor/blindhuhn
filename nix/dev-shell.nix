@@ -16,6 +16,7 @@
         pkgs.nodejs
         pkgs.typescript-language-server
       ];
+      formatters = pkgs.lib.attrValues config.treefmt.build.programs;
     in
     {
       devShells.default = pkgs.haskellPackages.shellFor {
@@ -30,6 +31,7 @@
         nativeBuildInputs = builtins.concatLists [
           haskell-env
           web-env
+          formatters
           config.pre-commit.settings.enabledPackages
         ];
 
