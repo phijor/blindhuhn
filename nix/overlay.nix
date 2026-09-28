@@ -4,6 +4,19 @@ final: prev: {
       hself: hsuper:
       let
         inherit (final.haskell.lib.compose) overrideCabal;
+        # Exclude *.nix files from source to prevent spurious rebuilds.
+        excludeNixFiles = overrideCabal (drv: {
+          src =
+            let
+              inherit (final.lib) fileset;
+              root = ../.;
+              nixFiles = fileset.fileFilter (file: file.hasExt "nix") root;
+            in
+            final.lib.fileset.toSource {
+              inherit root;
+              fileset = fileset.difference root nixFiles;
+            };
+        });
         addBinToPath = overrideCabal (drv: {
           # `Setup.hs test` (used by nixpkgs' Haskell builder) doesn't put
           # build-tool-depends executables on PATH the way `cabal test` does,
@@ -18,6 +31,7 @@ final: prev: {
       in
       {
         Blindhuhn = final.lib.pipe Blindhuhn [
+          excludeNixFiles
           addBinToPath
         ];
       }
