@@ -9,11 +9,12 @@ module Blindhuhn.Index (
 where
 
 import Agda.Compiler.Backend (Definition, defName, nameBindingSite)
-import Agda.Syntax.Abstract.Name (qnameModule, qnameName)
+import Agda.Syntax.Abstract.Name (ModuleName, isNoName, mnameFromList, mnameToList, qnameModule, qnameName)
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position (posCol, posLine, posPos, rStart)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Control.DeepSeq (NFData)
+import Control.Monad (guard)
 import Data.Aeson (ToJSON (..), encode, object, (.=))
 import Data.List (nubBy, sort)
 import Data.Text.Lazy (Text)
@@ -78,13 +79,14 @@ fromDefinition moduleName visibility definition = do
   let position = fromIntegral $ posPos start
       pageModuleText = prettyShow moduleName
       definitionName = defName definition
-      -- TODO: Check isAnonymousModuleName. Trim from path, perhaps?
-      -- `isNoName` check for the name `_`.
-      -- foo = filter (not . isNoName) $ qnameToList0 definitionName
-      moduleText = prettyShow $ qnameModule definitionName
+      name = prettyShow $ qnameName definitionName
+      moduleText = prettyShow $ dropAnonModules $ qnameModule definitionName
+  -- Do not index compiler-generated definitions.
+  -- They can never be named from an Agda program and are useless search results.
+  guard (not (isGeneratedName name))
   pure
     Entry
-      { indexName = prettyShow $ qnameName definitionName
+      { indexName = name
       , indexModule = moduleText
       , indexPath = URI.encode (pageModuleText ++ ".html") ++ "#" ++ show position
       , indexPosition = position
@@ -92,6 +94,20 @@ fromDefinition moduleName visibility definition = do
       , indexColumn = fromIntegral $ posCol start
       , indexVisibility = visibility
       }
+
+-- | Compiler-generated names (extended lambdas, absurd lambdas, ...) start
+-- with a dot, which cannot appear in a source-level Agda identifier.
+isGeneratedName :: String -> Bool
+isGeneratedName ('.' : _) = True
+isGeneratedName _ = False
+
+-- | Drop @_@ components from module paths.
+--
+-- An anonymous module (`module _ where`) contributes a "_" component
+-- to the qualified name of everything defined inside it, but any such
+-- definition is reachable without ever naming that module.
+dropAnonModules :: ModuleName -> ModuleName
+dropAnonModules = mnameFromList . filter (not . isNoName) . mnameToList
 
 -- | Render the definition index as deterministic UTF-8 JSON.
 render :: [Entry] -> Text
