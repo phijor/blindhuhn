@@ -6,6 +6,7 @@ import Data.Aeson (decode, object, (.=))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (assertBool, assertEqual, testCase)
 
+import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as TextEncoding
 
 import Blindhuhn.Index (Entry (..), Visibility (..), render)
@@ -73,9 +74,21 @@ searchTests =
     [ testCase "inserts the meta/link/script tags before </head>" $ do
         let page = "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"></head><body></body></html>"
             injected = injectHead "aaa" page
+            expected =
+              Text.concat
+                [ "<!DOCTYPE HTML><html><head>"
+                , "<meta charset=\"utf-8\">"
+                , "<!--blindhuhn-search-->"
+                , "<meta name=\"blindhuhn-index-hash\" content=\"aaa\">"
+                , "<link rel=\"icon\" href=\"/favicon.svg\" sizes=\"any\">"
+                , "<link rel=\"stylesheet\" href=\"blindhuhn-search.css\">"
+                , "<script type=\"module\" src=\"blindhuhn-search.js\"></script>"
+                , "<!--/blindhuhn-search-->"
+                , "</head><body></body></html>"
+                ]
         assertEqual
           "meta/link/script tags inserted before </head>"
-          "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><!--blindhuhn-search--><meta name=\"blindhuhn-index-hash\" content=\"aaa\"><link rel=\"stylesheet\" href=\"blindhuhn-search.css\"><script type=\"module\" src=\"blindhuhn-search.js\"></script><!--/blindhuhn-search--></head><body></body></html>"
+          expected
           injected
     , testCase "is a no-op when there is no </head>" $ do
         let page = "<html><body>no head here</body></html>"

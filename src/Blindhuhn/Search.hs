@@ -65,6 +65,7 @@ headSnippet hash' =
     , "<meta name=\"blindhuhn-index-hash\" content=\""
     , hash'
     , "\">"
+    , "<link rel=\"icon\" href=\"/favicon.svg\" sizes=\"any\">"
     , "<link rel=\"stylesheet\" href=\"blindhuhn-search.css\">"
     , "<script type=\"module\" src=\"blindhuhn-search.js\"></script>"
     , "<!--/blindhuhn-search-->"
