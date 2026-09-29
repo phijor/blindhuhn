@@ -27,6 +27,7 @@ library
     Blindhuhn
     Blindhuhn.Backend
     Blindhuhn.Index
+    Blindhuhn.Log
     Blindhuhn.Name
     Blindhuhn.Search
     Blindhuhn.Version

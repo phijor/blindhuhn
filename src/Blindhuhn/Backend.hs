@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Blindhuhn.Backend (backend) where
 
 import Agda.Compiler.Backend
@@ -5,13 +7,14 @@ import Agda.Interaction.FindFile (findFile)
 import Agda.Interaction.Imports (getNonMainInterface)
 import Agda.Interaction.Library (AgdaLibFile (..), LibName, findLib', parseLibName)
 import Agda.Interaction.Options (ArgDescr (..), OptDescr (..))
-import Agda.Syntax.Common.Pretty (Doc, nest, text, vcat)
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.IO.UTF8 (writeTextToFile)
 import Control.DeepSeq (NFData)
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.HashSet (HashSet, empty)
 import Data.Maybe (mapMaybe)
+import Data.Text.Lazy (Text)
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 
@@ -22,6 +25,7 @@ import Data.Text qualified as Text
 import Blindhuhn.Version (versionString)
 
 import Blindhuhn.Index qualified as Index
+import Blindhuhn.Log qualified as Log
 import Blindhuhn.Search qualified as Search
 import Blindhuhn.VisibilityMap qualified as Vis
 
@@ -122,8 +126,10 @@ bhPreModule env _isMain moduleName _interfacePath = do
   shouldIndex <- shouldIndexModule $ bhLibraries $ bhEnvOptions env
   case shouldIndex of
     False -> do
+      Log.debug "blindhuhn.index" $ "Skipping indexing of module" <+> (pretty moduleName <> ".")
       pure $ Skip BhModuleSkipped
     True -> do
+      Log.info "blindhuhn.index" $ "Indexing module" <+> (pretty moduleName <> ".")
       visibilities <- Vis.fromScopeInfo . iInsideScope <$> getNonMainInterface moduleName Nothing
       pure $ Recompile $ ModuleEnv moduleName visibilities
  where
@@ -185,20 +191,10 @@ bhPostCompile env _isMain modules = do
   let index = Index.render entries
 
   -- Write search index to output directory
-  liftIO $ writeTextToFile (outputDir </> "index.json") index
+  writeIndex outputDir index
 
   -- If enabled, inject search UI into existing pages.
-  when (bhSearchEnabled opts) $ do
-    previouslyInjected <- liftIO $ Search.findPreviousInjections outputDir
-    case previouslyInjected of
-      [] -> liftIO $ Search.inject outputDir (Search.hashIndex index)
-      files -> do
-        -- Refuse to modify pages if they already contain injections.
-        -- In principle, we could replace the injection but that is
-        -- error-prone if we don't properly parse the page HTML.
-        let msg = previousInjectionDoc files
-        reportSDoc "blindhuhn.search" 1 $ pure msg
-        genericDocError msg
+  when (bhSearchEnabled opts) $ inject outputDir index
  where
   previousInjectionDoc :: [FilePath] -> Doc
   previousInjectionDoc files =
@@ -208,3 +204,29 @@ bhPostCompile env _isMain modules = do
       , nest 2 (vcat (map text files))
       , text "Regenerate clean HTML files (e.g. by rerunning with `--html`) before retrying `--blindhuhn-search`."
       ]
+
+  writeIndex :: FilePath -> Text -> TCM ()
+  writeIndex outputDir index = do
+    let outPath = outputDir </> "index.json"
+    Log.info "blindhuhn.index" $ "Writing index to" <+> pretty outPath
+    liftIO $ writeTextToFile outPath index
+
+  inject :: FilePath -> Text -> TCM ()
+  inject outputDir index = do
+    previouslyInjected <- Search.findPreviousInjections outputDir
+    case previouslyInjected of
+      [] -> do
+        let hash = Search.hashIndex index
+        Log.info "blindhuhn.search" $
+          hsep
+            [ "Injecting search UI into HTML files"
+            , parens ("index hash:" <+> pretty hash)
+            ]
+        Search.inject outputDir hash
+      files -> do
+        -- Refuse to modify pages if they already contain injections.
+        -- In principle, we could replace the injection but that is
+        -- error-prone if we don't properly parse the page HTML.
+        let msg = previousInjectionDoc files
+        Log.info "blindhuhn.search" msg
+        genericDocError msg

@@ -18,7 +18,11 @@ module Blindhuhn.Search (
 )
 where
 
+import Agda.Syntax.Common.Pretty
+import Agda.TypeChecking.Monad.Base (MonadTCM)
+import Agda.TypeChecking.Monad.Debug (MonadDebug)
 import Control.Monad (filterM, forM_)
+import Control.Monad.IO.Class (MonadIO (..))
 import Data.ByteString (ByteString)
 import Data.FileEmbed (embedDir)
 import Data.Text (Text)
@@ -33,6 +37,8 @@ import Data.Text.Encoding qualified as TextEncoding
 import Data.Text.Lazy qualified as L
 
 import Blindhuhn.Search.Embed (embedVendoredAsset)
+
+import Blindhuhn.Log qualified as Log
 
 -- | The search UI assets (JS, CSS).
 searchAssets :: [(FilePath, ByteString)]
@@ -86,9 +92,9 @@ injectHead hash html =
 -- | Get the path to all @*.html@ files in @outputDir@.
 --
 -- The paths are prefixed with @outputDir@.
-htmlFiles :: FilePath -> IO [FilePath]
+htmlFiles :: MonadIO m => FilePath -> m [FilePath]
 htmlFiles outputDir = do
-  files <- filter ((== ".html") . takeExtension) <$> listDirectory outputDir
+  files <- filter ((== ".html") . takeExtension) <$> liftIO (listDirectory outputDir)
   pure $ map (outputDir </>) files
 
 -- Has a page with this content already had the search UI injected into it?
@@ -96,11 +102,11 @@ hasPreviousInjection :: Text -> Bool
 hasPreviousInjection content = "<meta name=\"blindhuhn-index-hash\"" `Text.isInfixOf` content
 
 -- | List @*.html@ files in @outputDir@ that already carry a previous injection.
-findPreviousInjections :: FilePath -> IO [FilePath]
+findPreviousInjections :: MonadIO m => FilePath -> m [FilePath]
 findPreviousInjections outputDir =
   htmlFiles outputDir >>= filterM (fmap hasPreviousInjection . readFileText)
  where
-  readFileText path = TextEncoding.decodeUtf8 <$> BS.readFile path
+  readFileText path = TextEncoding.decodeUtf8 <$> liftIO (BS.readFile path)
 
 -- | Derive a (non-cryptographic) hash from the serialized index.
 -- Used to prevent the search UI from accidentally serving stale results.
@@ -116,10 +122,19 @@ hashIndex content = Text.pack $ showHex (fromIntegral (Hashable.hash content) ::
 --
 -- The injection is keyed by @hash@, which should be derived from the search index using @hashIndex@.
 -- This ensure that the injected UI never loads a stale search index.
-inject :: FilePath -> Text -> IO ()
+inject :: (MonadTCM m, MonadDebug m) => FilePath -> Text -> m ()
 inject outputDir hash = do
-  forM_ assets $ \(name, contents) -> BS.writeFile (outputDir </> name) contents
+  forM_ assets $ \(name, contents) -> do
+    let outputPath = (outputDir </> name)
+    Log.info "blindhuhn.search" $ "Writing asset" <+> parens (pretty name)
+    liftIO $ BS.writeFile outputPath contents
+    Log.debug "blindhuhn.search" $ "Wrote asset to" <+> pretty outputPath
 
   htmlFiles outputDir >>= mapM_ \path -> do
+    Log.info "blindhuhn.search" $ "Injecting search UI" <+> parens (pretty path)
+    liftIO $ modifyFile path $ injectHead hash
+ where
+  modifyFile :: FilePath -> (Text -> Text) -> IO ()
+  modifyFile path f = do
     contents <- TextEncoding.decodeUtf8 <$> BS.readFile path
-    BS.writeFile path (TextEncoding.encodeUtf8 (injectHead hash contents))
+    BS.writeFile path (TextEncoding.encodeUtf8 (f contents))
